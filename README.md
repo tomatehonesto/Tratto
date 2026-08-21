@@ -28,9 +28,14 @@ Outros scripts: `npm run build` (typecheck + bundle) e `npm run preview`.
 
 ## Autenticação
 
-Login por email/senha via **Supabase Auth**. Não há cadastro público — usuários
-são criados pelo administrador no painel do Supabase, o que é o comportamento
-esperado para uma plataforma B2B.
+Login e cadastro por email/senha via **Supabase Auth**.
+
+No cadastro a pessoa informa a imobiliária, e o gatilho `handle_new_user()` cria
+uma **organização nova** com ela como Admin. Entrar numa organização existente é
+por convite — nunca por escolha no cadastro. Se bastasse digitar o nome, qualquer
+pessoa entraria na conta de uma imobiliária real e leria a due diligence dela.
+
+> O fluxo de convite ainda não existe. Hoje, cada cadastro cria uma organização.
 
 - `src/contexts/AuthContext.tsx` — sessão, `signIn`, `signOut`
 - `src/components/auth/ProtectedRoute.tsx` — bloqueia as rotas internas
@@ -92,6 +97,7 @@ Supabase, em ordem:
 | `0001_schema.sql` | Tabelas, índices, RLS e policies |
 | `0002_seed.sql` | Dados de demonstração e vínculo do seu usuário |
 | `0003_grants.sql` | Privilégios de tabela para `authenticated` |
+| `0004_signup_e_escrita.sql` | Provisionamento no cadastro, numeração de negócios e policies de escrita |
 
 O `0003` não é opcional. O projeto está com *"Automatically expose new tables"*
 desligado — o que é o certo, porque dá controle tabela a tabela — mas isso faz
@@ -103,9 +109,14 @@ O isolamento gira em torno de `current_org_id()`, que resolve a organização do
 usuário logado. Ela é `SECURITY DEFINER` porque as policies de `profiles`
 precisam consultar `profiles` — sem isso o Postgres entra em recursão.
 
-Só existem policies de **SELECT**: o app ainda não escreve no banco. Quando
-escrever, cada tabela vai precisar de policies de insert/update/delete com a
-mesma checagem de organização.
+Há policies de **SELECT**, **INSERT** e **UPDATE**. `DELETE` é deliberadamente
+ausente em todas as tabelas: apagar negócio não tem tela nem regra de permissão
+definida, e sem privilégio o banco recusa mesmo que o cliente tente.
+
+Criar negócio passa pela função `create_deal()`, não por inserts do cliente:
+negócio e partes precisam nascer juntos, e o PostgREST não expõe transação. Ela
+é `SECURITY INVOKER` de propósito — roda com os privilégios de quem chamou, então
+a RLS continua valendo.
 
 ### O que fica fora do banco
 
@@ -119,5 +130,8 @@ Autenticação e dados transacionais no Supabase. `src/data/api.ts` concentra to
 as queries e mapeia as linhas do banco para os tipos de domínio de `types.ts` —
 as páginas não sabem que o Supabase existe.
 
-Ainda não há escrita: a interface é somente leitura, e os botões de ação
-(Novo negócio, Reenviar, Convidar usuário) não estão ligados.
+**Novo negócio** já grava no banco. Os demais botões de ação (Reenviar,
+Convidar usuário, Exportar PDF) continuam sem ligação.
+
+Falta o fluxo de convite: hoje não há como adicionar uma segunda pessoa à mesma
+imobiliária pela plataforma.

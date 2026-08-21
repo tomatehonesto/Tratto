@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Plus,
   Briefcase,
@@ -18,6 +18,7 @@ import { Stat } from '@/components/ui/stat'
 import { Progress } from '@/components/ui/progress'
 import { Table, Th, Td, Tr } from '@/components/ui/table'
 import { LoadingState, ErrorState } from '@/components/ui/states'
+import { NovoNegocioModal } from '@/components/deals/NovoNegocioModal'
 import { VolumeChart } from '@/components/charts/VolumeChart'
 import { PageHeader, SectionTitle } from '@/components/layout/AppLayout'
 import {
@@ -58,6 +59,9 @@ async function fetchDashboard() {
 export default function Dashboard() {
   const { displayUser } = useAuth()
   const firstName = displayUser?.name.split(' ')[0] ?? 'bem-vindo'
+
+  const navigate = useNavigate()
+  const [modalOpen, setModalOpen] = useState(false)
 
   const fetcher = useCallback(fetchDashboard, [])
   const { data, loading, error, reload } = useQuery(fetcher)
@@ -119,10 +123,20 @@ export default function Dashboard() {
           )
         }
         action={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setModalOpen(true)}>
             <Plus /> Novo negócio
           </Button>
         }
+      />
+
+      <NovoNegocioModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={() => {
+          setModalOpen(false)
+          // Leva para a lista, onde o negócio recém-criado fica visível.
+          navigate('/negocios')
+        }}
       />
 
       <SectionTitle>Negócios</SectionTitle>

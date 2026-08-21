@@ -18,7 +18,15 @@ interface AuthValue {
   loading: boolean
   configured: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  signUp: (input: SignUpInput) => Promise<{ error: string | null; needsConfirmation: boolean }>
   signOut: () => Promise<void>
+}
+
+export interface SignUpInput {
+  name: string
+  organizationName: string
+  email: string
+  password: string
 }
 
 const AuthContext = createContext<AuthValue | undefined>(undefined)
@@ -57,7 +65,19 @@ function translateError(message: string) {
   if (m.includes('failed to fetch') || m.includes('network')) {
     return 'Não foi possível conectar ao servidor de autenticação.'
   }
-  return 'Não foi possível entrar. Tente novamente.'
+  if (m.includes('signups not allowed')) {
+    return 'O cadastro está desativado no momento.'
+  }
+  if (m.includes('already registered') || m.includes('already been registered')) {
+    return 'Já existe uma conta com este email.'
+  }
+  if (m.includes('password') && m.includes('least')) {
+    return 'A senha precisa ter pelo menos 6 caracteres.'
+  }
+  if (m.includes('invalid') && m.includes('email')) {
+    return 'Email inválido.'
+  }
+  return 'Não foi possível concluir. Tente novamente.'
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -93,6 +113,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase) return { error: 'Autenticação não configurada.' }
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       return { error: error ? translateError(error.message) : null }
+    },
+    async signUp({ name, organizationName, email, password }) {
+      if (!supabase) return { error: 'Autenticação não configurada.', needsConfirmation: false }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Lido pelo gatilho handle_new_user() para criar a organização e o
+        // perfil Admin. Sem isso o usuário entra sem organização e vê tudo vazio.
+        options: { data: { name, organization_name: organizationName } },
+      })
+
+      if (error) return { error: translateError(error.message), needsConfirmation: false }
+
+      // Com confirmação de email ligada, o Supabase devolve usuário sem sessão.
+      return { error: null, needsConfirmation: Boolean(data.user) && !data.session }
     },
     async signOut() {
       await supabase?.auth.signOut()

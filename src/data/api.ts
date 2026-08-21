@@ -103,6 +103,53 @@ export async function fetchDeals(): Promise<Deal[]> {
   })
 }
 
+export interface NewDealInput {
+  type: DealType
+  address: string
+  district: string
+  city: string
+  value: number
+  recurring: boolean
+  stage: DealStage
+  buyer: { name: string; role: string }
+  seller: { name: string; role: string }
+}
+
+/**
+ * Cria o negócio e as duas partes numa transação só, via função no banco.
+ *
+ * Duas chamadas separadas do cliente poderiam deixar um negócio sem partes se
+ * a segunda falhasse — o PostgREST não expõe transação. `organization_id` e a
+ * referência (#001) são resolvidos no servidor.
+ *
+ * Retorna a referência gerada.
+ */
+export async function createDeal(input: NewDealInput): Promise<string> {
+  const { data, error } = await client().rpc('create_deal', {
+    p_type: input.type,
+    p_address: input.address,
+    p_district: input.district,
+    p_city: input.city,
+    p_value: input.value,
+    p_recurring: input.recurring,
+    p_stage: input.stage,
+    p_buyer_name: input.buyer.name,
+    p_buyer_role: input.buyer.role,
+    p_seller_name: input.seller.name,
+    p_seller_role: input.seller.role,
+  })
+
+  if (error) {
+    if (error.code === '42501') throw new Error('Você não tem permissão para criar negócios.')
+    if (error.message.includes('vinculado a nenhuma imobiliária')) {
+      throw new Error('Sua conta não está vinculada a nenhuma imobiliária.')
+    }
+    throw new Error('Não foi possível criar o negócio.')
+  }
+
+  return data as string
+}
+
 // ---------------------------------------------------------------------------
 // Certidões
 // ---------------------------------------------------------------------------

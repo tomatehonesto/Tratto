@@ -8,6 +8,7 @@ import { AvatarPair, Avatar } from '@/components/ui/avatar'
 import { Tabs } from '@/components/ui/tabs'
 import { SearchInput, Select } from '@/components/ui/field'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
+import { NovoNegocioModal } from '@/components/deals/NovoNegocioModal'
 import { PageHeader } from '@/components/layout/AppLayout'
 import { fetchDeals } from '@/data/api'
 import { useQuery } from '@/hooks/useQuery'
@@ -27,6 +28,8 @@ export default function Negocios() {
   const [status, setStatus] = useState('todos')
   const [type, setType] = useState('todos')
   const [query, setQuery] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [created, setCreated] = useState<string | null>(null)
 
   const { data, loading, error, reload } = useQuery(fetchDeals)
   const deals = useMemo(() => data ?? [], [data])
@@ -69,11 +72,35 @@ export default function Negocios() {
             : `${deals.length} negócios · ${active} em andamento · ${blocked} bloqueado${blocked === 1 ? '' : 's'}`
         }
         action={
-          <Button variant="primary">
+          <Button variant="primary" onClick={() => setModalOpen(true)}>
             <Plus /> Novo negócio
           </Button>
         }
       />
+
+      <NovoNegocioModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={(reference) => {
+          setModalOpen(false)
+          setCreated(reference)
+          reload()
+        }}
+      />
+
+      {created && (
+        <div className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-[#10b98133] bg-success-soft px-4 py-3">
+          <p className="text-[13px] text-[#047857]">
+            Negócio <strong className="font-semibold">{created}</strong> criado.
+          </p>
+          <button
+            onClick={() => setCreated(null)}
+            className="cursor-pointer text-[12px] text-[#047857] underline underline-offset-2"
+          >
+            Dispensar
+          </button>
+        </div>
+      )}
 
       <div className="mb-5 flex items-center justify-between gap-4">
         <Tabs items={filters} value={status} onChange={setStatus} />

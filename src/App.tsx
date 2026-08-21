@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
+import Cadastro from '@/pages/Cadastro'
 import Dashboard from '@/pages/Dashboard'
 import Negocios from '@/pages/Negocios'
 import Documentos from '@/pages/Documentos'
@@ -17,6 +18,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Cadastro />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { Splash } from '@/pages/Login'
+import { Splash } from './AuthShell'
 
 /**
  * Só libera as rotas internas com sessão válida. Enquanto a sessão inicial
