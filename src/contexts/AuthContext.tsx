@@ -77,7 +77,13 @@ function translateError(message: string) {
   if (m.includes('invalid') && m.includes('email')) {
     return 'Email inválido.'
   }
-  return 'Não foi possível concluir. Tente novamente.'
+  if (m.includes('sending') && m.includes('email')) {
+    return 'A conta não pôde ser criada porque o email de confirmação não foi enviado. Verifique a configuração de SMTP.'
+  }
+  // Desconhecido: mostra o original em vez de esconder. Uma mensagem genérica
+  // aqui custa um ciclo inteiro de depuração para descobrir o que já estava
+  // escrito na resposta.
+  return `Não foi possível concluir: ${message}`
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
