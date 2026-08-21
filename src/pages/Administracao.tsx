@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { UnderlineTabs } from '@/components/ui/tabs'
 import { Table, Th, Td, Tr } from '@/components/ui/table'
+import { LoadingState, ErrorState } from '@/components/ui/states'
 import { PageHeader } from '@/components/layout/AppLayout'
-import { users } from '@/data/usuarios'
+import { fetchUsers } from '@/data/api'
+import { useQuery } from '@/hooks/useQuery'
 import type { UserRole } from '@/data/types'
 
 const TABS = [
@@ -48,7 +50,12 @@ const roleTone = {
 } as const
 
 function UsuariosTab() {
+  const { data, loading, error, reload } = useQuery(fetchUsers)
+  const users = data ?? []
   const active = users.filter((u) => u.active).length
+
+  if (loading) return <LoadingState label="Carregando usuários..." />
+  if (error) return <ErrorState message={error} onRetry={reload} />
 
   return (
     <>
@@ -280,6 +287,9 @@ const COMPANY = [
 ]
 
 function EmpresaTab() {
+  const { data } = useQuery(fetchUsers)
+  const userCount = data?.length
+
   return (
     <div className="grid grid-cols-3 gap-4">
       <Card className="col-span-2">
@@ -306,7 +316,7 @@ function EmpresaTab() {
           <dl className="space-y-2 text-[13px]">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Usuários</dt>
-              <dd className="tabular-nums">{users.length} / 15</dd>
+              <dd className="tabular-nums">{userCount ?? '—'} / 15</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Certidões / mês</dt>

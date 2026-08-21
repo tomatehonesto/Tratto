@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react'
-import { Card, CardBody } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Stat } from '@/components/ui/stat'
 import { Select } from '@/components/ui/field'
 import { Table, Th, Td, Tr } from '@/components/ui/table'
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
 import { PageHeader } from '@/components/layout/AppLayout'
-import { certidoes } from '@/data/certidoes'
+import { fetchCertidoes } from '@/data/api'
+import { useQuery } from '@/hooks/useQuery'
 import { certidaoTone } from '@/lib/status'
 import { formatCost, formatDate } from '@/lib/format'
 
 export default function Certidoes() {
   const [status, setStatus] = useState('todos')
+  const { data, loading, error, reload } = useQuery(fetchCertidoes)
+
+  const certidoes = useMemo(() => data ?? [], [data])
 
   const visible = useMemo(
     () => (status === 'todos' ? certidoes : certidoes.filter((c) => c.status === status)),
-    [status],
+    [certidoes, status],
   )
 
   const received = certidoes.filter((c) => c.status === 'Recebida').length
@@ -26,31 +31,35 @@ export default function Certidoes() {
       <PageHeader title="Certidões" description="Todas as certidões solicitadas automaticamente" />
 
       <div className="mb-6 grid grid-cols-4 gap-4">
-        <Stat label="Total" value={certidoes.length} />
-        <Stat label="Recebidas" value={received} hintTone="success" />
-        <Stat label="Em andamento" value={inProgress} hintTone="warning" />
-        <Stat label="Vencidas" value={expired} hintTone="danger" />
+        <Stat label="Total" value={loading ? '—' : certidoes.length} />
+        <Stat label="Recebidas" value={loading ? '—' : received} hintTone="success" />
+        <Stat label="Em andamento" value={loading ? '—' : inProgress} hintTone="warning" />
+        <Stat label="Vencidas" value={loading ? '—' : expired} hintTone="danger" />
       </div>
 
       <div className="mb-4 flex items-center justify-between gap-4">
-        <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <Select value={status} onChange={(e) => setStatus(e.target.value)} disabled={loading}>
           <option value="todos">Todos os status</option>
           <option value="Recebida">Recebida</option>
           <option value="Solicitada">Em andamento</option>
           <option value="Pendente">Pendente</option>
           <option value="Vencida">Vencida</option>
         </Select>
-        <span className="text-[13px] text-muted-foreground">
-          {visible.length} certid{visible.length === 1 ? 'ão' : 'ões'}
-        </span>
+        {!loading && !error && (
+          <span className="text-[13px] text-muted-foreground">
+            {visible.length} certid{visible.length === 1 ? 'ão' : 'ões'}
+          </span>
+        )}
       </div>
 
-      <Card>
-        {visible.length === 0 ? (
-          <CardBody className="py-16 text-center text-[13px] text-muted-foreground">
-            Nenhuma certidão com este status.
-          </CardBody>
-        ) : (
+      {loading ? (
+        <LoadingState label="Carregando certidões..." />
+      ) : error ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : visible.length === 0 ? (
+        <EmptyState message="Nenhuma certidão com este status." />
+      ) : (
+        <Card>
           <Table>
             <thead>
               <tr>
@@ -85,8 +94,8 @@ export default function Certidoes() {
               ))}
             </tbody>
           </Table>
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   )
 }

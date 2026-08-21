@@ -7,8 +7,10 @@ import { Progress } from '@/components/ui/progress'
 import { AvatarPair, Avatar } from '@/components/ui/avatar'
 import { Tabs } from '@/components/ui/tabs'
 import { SearchInput, Select } from '@/components/ui/field'
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
 import { PageHeader } from '@/components/layout/AppLayout'
-import { deals } from '@/data/deals'
+import { fetchDeals } from '@/data/api'
+import { useQuery } from '@/hooks/useQuery'
 import type { Deal } from '@/data/types'
 import { dealTone, progressTone } from '@/lib/status'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -26,13 +28,16 @@ export default function Negocios() {
   const [type, setType] = useState('todos')
   const [query, setQuery] = useState('')
 
+  const { data, loading, error, reload } = useQuery(fetchDeals)
+  const deals = useMemo(() => data ?? [], [data])
+
   const filters = useMemo(
     () =>
       STATUS_FILTERS.map((f) => ({
         ...f,
         count: f.value === 'todos' ? deals.length : deals.filter((d) => d.status === f.value).length,
       })),
-    [],
+    [deals],
   )
 
   const visible = useMemo(() => {
@@ -49,7 +54,7 @@ export default function Negocios() {
         d.seller.name.toLowerCase().includes(q)
       )
     })
-  }, [status, type, query])
+  }, [deals, status, type, query])
 
   const active = deals.filter((d) => d.status === 'Em andamento').length
   const blocked = deals.filter((d) => d.status === 'Bloqueado').length
@@ -58,7 +63,11 @@ export default function Negocios() {
     <>
       <PageHeader
         title="Negócios"
-        description={`${deals.length} negócios · ${active} em andamento · ${blocked} bloqueado${blocked === 1 ? '' : 's'}`}
+        description={
+          loading
+            ? 'Carregando...'
+            : `${deals.length} negócios · ${active} em andamento · ${blocked} bloqueado${blocked === 1 ? '' : 's'}`
+        }
         action={
           <Button variant="primary">
             <Plus /> Novo negócio
@@ -73,9 +82,10 @@ export default function Negocios() {
             placeholder="Buscar..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            disabled={loading}
             className="w-[220px]"
           />
-          <Select value={type} onChange={(e) => setType(e.target.value)}>
+          <Select value={type} onChange={(e) => setType(e.target.value)} disabled={loading}>
             <option value="todos">Todos os tipos</option>
             <option value="Compra e Venda">Compra e Venda</option>
             <option value="Locação">Locação</option>
@@ -84,12 +94,12 @@ export default function Negocios() {
         </div>
       </div>
 
-      {visible.length === 0 ? (
-        <Card>
-          <CardBody className="py-16 text-center text-[13px] text-muted-foreground">
-            Nenhum negócio corresponde aos filtros aplicados.
-          </CardBody>
-        </Card>
+      {loading ? (
+        <LoadingState label="Carregando negócios..." />
+      ) : error ? (
+        <ErrorState message={error} onRetry={reload} />
+      ) : visible.length === 0 ? (
+        <EmptyState message="Nenhum negócio corresponde aos filtros aplicados." />
       ) : (
         <div className="grid grid-cols-3 gap-4">
           {visible.map((d) => (

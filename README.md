@@ -45,12 +45,18 @@ importar quando os dados saírem de `src/data/` e forem para o Postgres.
 ```
 src/
 ├── components/
-│   ├── ui/          Primitivas (card, badge, button, table, tabs, avatar…)
+│   ├── ui/          Primitivas (card, badge, button, table, states…)
+│   ├── auth/        ProtectedRoute
 │   ├── layout/      AppLayout, Sidebar, PageHeader
 │   └── charts/      VolumeChart (SVG)
-├── data/            Camada de dados mock, tipada — troque por chamadas de API
-├── lib/             utils, formatação pt-BR, mapeamento status → cor
+├── contexts/        AuthContext
+├── data/            api.ts (queries), types.ts (domínio), conteúdo de referência
+├── hooks/           useQuery
+├── lib/             supabase, formatação pt-BR, status → cor
 └── pages/           Uma página por rota
+
+supabase/
+└── migrations/      SQL aplicado no painel do Supabase
 ```
 
 ## Design system
@@ -73,12 +79,38 @@ a mesma situação nunca apareça com cores diferentes em telas distintas.
 | `/assinaturas` | Monitoramento de assinaturas eletrônicas |
 | `/administracao` | Usuários, permissões, modelos, integrações e empresa |
 
+## Banco de dados
+
+Postgres do Supabase, multi-tenant: cada linha pertence a uma organização
+(imobiliária) e a Row Level Security garante o isolamento entre elas.
+
+As migrations ficam em `supabase/migrations/` e são aplicadas no SQL Editor do
+Supabase, em ordem:
+
+| Arquivo | O que faz |
+| --- | --- |
+| `0001_schema.sql` | Tabelas, índices, RLS e policies |
+| `0002_seed.sql` | Dados de demonstração e vínculo do seu usuário |
+
+O isolamento gira em torno de `current_org_id()`, que resolve a organização do
+usuário logado. Ela é `SECURITY DEFINER` porque as policies de `profiles`
+precisam consultar `profiles` — sem isso o Postgres entra em recursão.
+
+Só existem policies de **SELECT**: o app ainda não escreve no banco. Quando
+escrever, cada tabela vai precisar de policies de insert/update/delete com a
+mesma checagem de organização.
+
+### O que fica fora do banco
+
+O guia de documentação por UF (`src/data/documentos.ts`) e os checklists por
+modelo (`src/data/checklists.ts`) seguem em código de propósito: são conteúdo de
+referência, idênticos para toda imobiliária e versionados por deploy.
+
 ## Estado atual
 
-Front-end completo com autenticação real (Supabase Auth). Os **dados** ainda são
-mock: `src/data/` é o ponto único de troca para migrar ao Postgres do Supabase.
+Autenticação e dados transacionais no Supabase. `src/data/api.ts` concentra todas
+as queries e mapeia as linhas do banco para os tipos de domínio de `types.ts` —
+as páginas não sabem que o Supabase existe.
 
-Vale saber: o login protege a interface, mas o conteúdo de `src/data/` é compilado
-no bundle e continua legível por quem inspecionar os arquivos JS, mesmo sem entrar.
-Isso é inofensivo enquanto os dados são fictícios — e deixa de ser no dia em que
-forem reais, que é exatamente quando eles devem passar a vir do banco.
+Ainda não há escrita: a interface é somente leitura, e os botões de ação
+(Novo negócio, Reenviar, Convidar usuário) não estão ligados.

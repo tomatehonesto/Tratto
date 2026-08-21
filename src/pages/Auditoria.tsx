@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Stat } from '@/components/ui/stat'
 import { Tabs } from '@/components/ui/tabs'
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
 import { PageHeader, SectionTitle } from '@/components/layout/AppLayout'
-import { audits, checklistModels } from '@/data/auditoria'
+import { fetchAudits } from '@/data/api'
+import { useQuery } from '@/hooks/useQuery'
+// Checklists padrão são conteúdo de referência, iguais para toda imobiliária:
+// seguem em código de propósito, fora do banco.
+import { checklistModels } from '@/data/checklists'
 import { verdictTone, progressTone } from '@/lib/status'
 
 const TYPE_FILTERS = [
@@ -20,9 +25,12 @@ const TYPE_FILTERS = [
 export default function Auditoria() {
   const [type, setType] = useState('todos')
 
+  const { data, loading, error, reload } = useQuery(fetchAudits)
+  const audits = useMemo(() => data ?? [], [data])
+
   const visible = useMemo(
     () => (type === 'todos' ? audits : audits.filter((a) => a.type === type)),
-    [type],
+    [audits, type],
   )
 
   const approved = audits.filter((a) => a.verdict === 'Aprovado').length
@@ -37,19 +45,34 @@ export default function Auditoria() {
       />
 
       <div className="mb-6 grid grid-cols-4 gap-4">
-        <Stat label="Negócios auditados" value={audits.length} />
-        <Stat label="Aprovados" value={approved} hintTone="success" />
-        <Stat label="Com pendências" value={attention} hintTone="warning" />
-        <Stat label="Bloqueadores" value={blockers} hintTone="danger" />
+        <Stat label="Negócios auditados" value={loading ? '—' : audits.length} />
+        <Stat label="Aprovados" value={loading ? '—' : approved} hintTone="success" />
+        <Stat label="Com pendências" value={loading ? '—' : attention} hintTone="warning" />
+        <Stat label="Bloqueadores" value={loading ? '—' : blockers} hintTone="danger" />
       </div>
 
       <div className="mb-4 flex items-center justify-between gap-4">
         <Tabs items={TYPE_FILTERS} value={type} onChange={setType} />
-        <span className="text-[13px] text-muted-foreground">
-          {visible.length} negócio{visible.length === 1 ? '' : 's'}
-        </span>
+        {!loading && !error && (
+          <span className="text-[13px] text-muted-foreground">
+            {visible.length} negócio{visible.length === 1 ? '' : 's'}
+          </span>
+        )}
       </div>
 
+      {loading ? (
+        <div className="mb-8">
+          <LoadingState label="Carregando auditorias..." />
+        </div>
+      ) : error ? (
+        <div className="mb-8">
+          <ErrorState message={error} onRetry={reload} />
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="mb-8">
+          <EmptyState message="Nenhum negócio auditado com este filtro." />
+        </div>
+      ) : (
       <div className="mb-8 grid grid-cols-2 gap-4">
         {visible.map((a) => {
           const done = a.groups.reduce((s, g) => s + g.done, 0)
@@ -104,6 +127,7 @@ export default function Auditoria() {
           )
         })}
       </div>
+      )}
 
       <SectionTitle>Checklists padrão por modelo</SectionTitle>
       <p className="mb-4 -mt-2 text-[13px] text-muted-foreground">
