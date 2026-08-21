@@ -91,6 +91,13 @@ Supabase, em ordem:
 | --- | --- |
 | `0001_schema.sql` | Tabelas, índices, RLS e policies |
 | `0002_seed.sql` | Dados de demonstração e vínculo do seu usuário |
+| `0003_grants.sql` | Privilégios de tabela para `authenticated` |
+
+O `0003` não é opcional. O projeto está com *"Automatically expose new tables"*
+desligado — o que é o certo, porque dá controle tabela a tabela — mas isso faz
+tabelas criadas por SQL nascerem sem `GRANT`. Policy não substitui privilégio:
+sem ele o PostgREST devolve `42501` mesmo para usuário autenticado. `anon` fica
+sem acesso de propósito, como camada extra além da RLS.
 
 O isolamento gira em torno de `current_org_id()`, que resolve a organização do
 usuário logado. Ela é `SECURITY DEFINER` porque as policies de `profiles`

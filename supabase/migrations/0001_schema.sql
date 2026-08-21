@@ -280,3 +280,7 @@ create policy audit_groups_select on public.audit_groups
 -- Nota: só há policies de SELECT. Escrita ainda não é feita pelo app; quando
 -- for, cada tabela precisará de policies de insert/update/delete com a mesma
 -- checagem de organização.
+--
+-- Policy não substitui privilégio: com "Automatically expose new tables"
+-- desligado, estas tabelas nascem sem GRANT e o PostgREST devolve 42501 mesmo
+-- para usuário autenticado. Os GRANTs estão em 0003_grants.sql.
