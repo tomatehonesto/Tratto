@@ -22,7 +22,7 @@ import { deals, pendencies, activities, pipelineByType } from '@/data/deals'
 import { certidoes } from '@/data/certidoes'
 import { contracts } from '@/data/contratos'
 import { docCountsByType } from '@/data/documentos'
-import { currentUser } from '@/data/usuarios'
+import { useAuth } from '@/contexts/AuthContext'
 import { dealTone, progressTone, contractTone } from '@/lib/status'
 import { formatToday, greeting } from '@/lib/format'
 
@@ -34,7 +34,8 @@ const kindTone = {
 } as const
 
 export default function Dashboard() {
-  const firstName = currentUser.name.split(' ')[0]
+  const { displayUser } = useAuth()
+  const firstName = displayUser?.name.split(' ')[0] ?? 'bem-vindo'
 
   const activeDeals = deals.filter((d) => d.status === 'Em andamento').length
   const awaitingSignature = deals.filter((d) => d.status === 'Aguard. assinatura').length

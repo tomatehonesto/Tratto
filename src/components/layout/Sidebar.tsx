@@ -8,10 +8,11 @@ import {
   FileSignature,
   PenLine,
   Settings,
+  LogOut,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
-import { currentUser } from '@/data/usuarios'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 type NavItem = { to: string; label: string; icon: LucideIcon }
@@ -41,6 +42,8 @@ const sections: { title: string; items: NavItem[] }[] = [
 ]
 
 export function Sidebar() {
+  const { displayUser, signOut } = useAuth()
+
   return (
     <aside className="flex h-screen w-[220px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center gap-2.5 px-5 py-5">
@@ -88,11 +91,21 @@ export function Sidebar() {
       </nav>
 
       <div className="flex items-center gap-2.5 border-t border-sidebar-border px-4 py-3.5">
-        <Avatar initials={currentUser.initials} size={30} />
-        <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium leading-tight">{currentUser.name}</p>
-          <p className="truncate text-[12px] text-muted-foreground">{currentUser.role}</p>
+        <Avatar initials={displayUser?.initials ?? '?'} size={30} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium leading-tight">
+            {displayUser?.name ?? 'Usuário'}
+          </p>
+          <p className="truncate text-[12px] text-muted-foreground">{displayUser?.role}</p>
         </div>
+        <button
+          onClick={() => void signOut()}
+          aria-label="Sair da plataforma"
+          title="Sair"
+          className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
     </aside>
   )
