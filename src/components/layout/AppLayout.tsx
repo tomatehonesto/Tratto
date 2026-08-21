@@ -4,9 +4,12 @@ import { Sidebar } from './Sidebar'
 
 export function AppLayout() {
   return (
-    <div className="flex min-h-screen bg-background">
+    // h-screen (não min-h-screen) trava a moldura na altura da viewport, e a
+    // rolagem passa a acontecer dentro do <main>. Assim a sidebar fica parada
+    // em vez de sair de vista junto com o documento.
+    <div className="flex h-screen bg-background">
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="mx-auto max-w-[1400px] px-8 py-7">
           <Outlet />
         </div>
