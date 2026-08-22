@@ -126,9 +126,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        // Lido pelo gatilho handle_new_user() para criar a organização e o
-        // perfil Admin. Sem isso o usuário entra sem organização e vê tudo vazio.
-        options: { data: { name, organization_name: organizationName } },
+        options: {
+          // Lido pelo gatilho handle_new_user() para criar a organização e o
+          // perfil Admin. Sem isso o usuário entra sem organização e vê tudo vazio.
+          data: { name, organization_name: organizationName },
+          // Sem isto o link de confirmação volta sempre para o Site URL do
+          // projeto — quem se cadastra em produção cairia em localhost.
+          // A origem precisa estar na allow-list de Redirect URLs do Supabase.
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       })
 
       if (error) return { error: translateError(error.message), needsConfirmation: false }
