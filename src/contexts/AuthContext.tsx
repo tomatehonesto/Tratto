@@ -9,6 +9,7 @@ export interface DisplayUser {
   initials: string
   email: string
   role: string
+  organizationName: string
 }
 
 interface AuthValue {
@@ -38,17 +39,27 @@ function initialsFrom(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function toDisplayUser(user: User): DisplayUser {
+function toDisplayUser(user: User, perfil: PerfilDb | null): DisplayUser {
   const meta = user.user_metadata ?? {}
   const email = user.email ?? ''
-  // Cai para o trecho antes do @ quando o usuário não tem nome no metadata.
-  const name = (meta.name as string) || (meta.full_name as string) || email.split('@')[0] || 'Usuário'
+  // O perfil no banco é a fonte boa; o metadata cobre o instante entre entrar
+  // e a consulta responder, e o trecho antes do @ é o último recurso.
+  const name =
+    perfil?.name || (meta.name as string) || (meta.full_name as string) || email.split('@')[0] || 'Usuário'
   return {
     name,
     initials: initialsFrom(name),
     email,
-    role: (meta.role as string) || 'Usuário',
+    role: perfil?.role || (meta.role as string) || 'Usuário',
+    organizationName:
+      perfil?.organizationName || (meta.organization_name as string) || 'sua imobiliária',
   }
+}
+
+interface PerfilDb {
+  name: string
+  role: string
+  organizationName: string
 }
 
 /**
@@ -89,6 +100,7 @@ function translateError(message: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [perfil, setPerfil] = useState<PerfilDb | null>(null)
 
   useEffect(() => {
     if (!supabase) {
@@ -109,10 +121,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const user = session?.user ?? null
+  const userId = user?.id
+
+  // Carrega o perfil real assim que há sessão. Falha aqui não bloqueia o app:
+  // a interface cai para o metadata do usuário.
+  useEffect(() => {
+    if (!supabase || !userId) {
+      setPerfil(null)
+      return
+    }
+    let ativo = true
+    supabase
+      .from('profiles')
+      .select('name, role, organizations(name)')
+      .eq('auth_user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!ativo || !data) return
+        const org = Array.isArray(data.organizations) ? data.organizations[0] : data.organizations
+        setPerfil({
+          name: data.name as string,
+          role: data.role as string,
+          organizationName: (org as { name: string } | null)?.name ?? '',
+        })
+      })
+    return () => {
+      ativo = false
+    }
+  }, [userId])
 
   const value: AuthValue = {
     user,
-    displayUser: user ? toDisplayUser(user) : null,
+    displayUser: user ? toDisplayUser(user, perfil) : null,
     loading,
     configured: isSupabaseConfigured,
     async signIn(email, password) {

@@ -5,7 +5,8 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "comment": "Tudo cai no index.html menos /api, que são funções serverless.",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],

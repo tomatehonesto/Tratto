@@ -132,6 +132,7 @@ export default function Dashboard() {
       <NovoNegocioModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        organizationName={displayUser?.organizationName ?? 'sua imobiliária'}
         onCreated={() => {
           setModalOpen(false)
           // Leva para a lista, onde o negócio recém-criado fica visível.

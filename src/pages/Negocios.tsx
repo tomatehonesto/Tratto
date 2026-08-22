@@ -13,6 +13,7 @@ import { NovoNegocioModal } from '@/components/deals/NovoNegocioModal'
 import { PageHeader } from '@/components/layout/AppLayout'
 import { fetchDeals } from '@/data/api'
 import { useQuery } from '@/hooks/useQuery'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Deal } from '@/data/types'
 import { dealTone, progressTone } from '@/lib/status'
 import { formatCurrency, formatDate } from '@/lib/format'
@@ -31,6 +32,10 @@ export default function Negocios() {
   const [query, setQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
+  const [avisos, setAvisos] = useState<string[]>([])
+
+  const { displayUser } = useAuth()
+  const organizationName = displayUser?.organizationName ?? 'sua imobiliária'
 
   const { data, loading, error, reload } = useQuery(fetchDeals)
   const deals = useMemo(() => data ?? [], [data])
@@ -82,24 +87,41 @@ export default function Negocios() {
       <NovoNegocioModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onCreated={(reference) => {
+        organizationName={organizationName}
+        onCreated={(reference, novosAvisos) => {
           setModalOpen(false)
           setCreated(reference)
+          setAvisos(novosAvisos)
           reload()
         }}
       />
 
       {created && (
-        <div className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-[#10b98133] bg-success-soft px-4 py-3">
-          <p className="text-[13px] text-[#047857]">
-            Negócio <strong className="font-semibold">{created}</strong> criado.
-          </p>
-          <button
-            onClick={() => setCreated(null)}
-            className="cursor-pointer text-[12px] text-[#047857] underline underline-offset-2"
-          >
-            Dispensar
-          </button>
+        <div className="mb-5 rounded-lg border border-[#10b98133] bg-success-soft px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-[13px] text-[#047857]">
+              Negócio <strong className="font-semibold">{created}</strong> criado
+              {avisos.length === 0 && ' e convites enviados às partes'}.
+            </p>
+            <button
+              onClick={() => {
+                setCreated(null)
+                setAvisos([])
+              }}
+              className="cursor-pointer text-[12px] text-[#047857] underline underline-offset-2"
+            >
+              Dispensar
+            </button>
+          </div>
+          {avisos.length > 0 && (
+            <ul className="mt-2 space-y-1 border-t border-[#10b98133] pt-2">
+              {avisos.map((a) => (
+                <li key={a} className="text-[12px] text-[#b45309]">
+                  {a} — o link continua válido e pode ser reenviado.
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

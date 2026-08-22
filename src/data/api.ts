@@ -103,8 +103,16 @@ export async function fetchDeals(): Promise<Deal[]> {
   })
 }
 
+export interface NewDealParty {
+  name: string
+  role: string
+  email: string
+  phone: string
+}
+
 export interface NewDealInput {
   type: DealType
+  modality: string
   /** Linha composta para exibição; as partes vão nos campos abaixo. */
   address: string
   cep: string
@@ -114,11 +122,19 @@ export interface NewDealInput {
   district: string
   city: string
   uf: string
+  brokerName: string
+  lawyerName: string
   value: number
   recurring: boolean
   stage: DealStage
-  buyer: { name: string; role: string }
-  seller: { name: string; role: string }
+  buyer: NewDealParty
+  seller: NewDealParty
+}
+
+export interface CreatedDeal {
+  reference: string
+  buyerToken: string
+  sellerToken: string
 }
 
 /**
@@ -130,9 +146,10 @@ export interface NewDealInput {
  *
  * Retorna a referência gerada.
  */
-export async function createDeal(input: NewDealInput): Promise<string> {
+export async function createDeal(input: NewDealInput): Promise<CreatedDeal> {
   const { data, error } = await client().rpc('create_deal', {
     p_type: input.type,
+    p_modality: input.modality,
     p_address: input.address,
     p_cep: input.cep,
     p_street: input.street,
@@ -141,13 +158,19 @@ export async function createDeal(input: NewDealInput): Promise<string> {
     p_district: input.district,
     p_city: input.city,
     p_uf: input.uf,
+    p_broker_name: input.brokerName,
+    p_lawyer_name: input.lawyerName,
     p_value: input.value,
     p_recurring: input.recurring,
     p_stage: input.stage,
     p_buyer_name: input.buyer.name,
     p_buyer_role: input.buyer.role,
+    p_buyer_email: input.buyer.email,
+    p_buyer_phone: input.buyer.phone,
     p_seller_name: input.seller.name,
     p_seller_role: input.seller.role,
+    p_seller_email: input.seller.email,
+    p_seller_phone: input.seller.phone,
   })
 
   if (error) {
@@ -158,7 +181,12 @@ export async function createDeal(input: NewDealInput): Promise<string> {
     throw new Error('Não foi possível criar o negócio.')
   }
 
-  return data as string
+  const result = data as { reference: string; buyer_token: string; seller_token: string }
+  return {
+    reference: result.reference,
+    buyerToken: result.buyer_token,
+    sellerToken: result.seller_token,
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -99,6 +99,37 @@ Supabase, em ordem:
 | `0003_grants.sql` | Privilégios de tabela para `authenticated` |
 | `0004_signup_e_escrita.sql` | Provisionamento no cadastro, numeração de negócios e policies de escrita |
 | `0005_endereco_estruturado.sql` | CEP, logradouro, número e complemento em colunas próprias |
+| `0006_convites_e_documentos.sql` | Convites por token, bucket privado e upload das partes |
+
+## Convites e upload de documentos
+
+Comprador e vendedor **não têm conta**. Ao criar o negócio, cada um recebe por
+email um link com token de 64 caracteres hex e validade de 30 dias, que abre
+`/enviar-documentos/:token` — rota pública, sem sessão.
+
+Todo acesso deles é validado pelo token no banco, por funções `SECURITY
+DEFINER` que devolvem só o necessário: nome da pessoa, imóvel e o que já foi
+enviado. Nunca o valor do negócio nem a parte contrária.
+
+Os arquivos vão para o bucket privado `deal-documents`, em `{token}/{arquivo}`.
+A pasta **é** a credencial: a policy do Storage autoriza escrita apenas dentro
+da pasta de um token válido, e o visitante não consegue ler nada de volta —
+nem o que ele mesmo enviou.
+
+### Envio de email
+
+`api/enviar-convite.ts` é uma função serverless na Vercel. Ela existe porque a
+chave do Resend não pode ir para o bundle. Exige, no ambiente da Vercel:
+
+| Variável | Valor |
+| --- | --- |
+| `RESEND_API_KEY` | a API key do Resend — **sem** prefixo `VITE_` |
+| `INVITE_FROM_EMAIL` | remetente no domínio verificado |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | usados para validar a sessão de quem chama |
+
+Rodando com `npm run dev` (Vite puro) a rota `/api` não existe, então o convite
+não sai: o negócio é criado normalmente e a interface avisa que o email falhou.
+O link continua válido.
 
 O `0003` não é opcional. O projeto está com *"Automatically expose new tables"*
 desligado — o que é o certo, porque dá controle tabela a tabela — mas isso faz

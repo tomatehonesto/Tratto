@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
 import Login from '@/pages/Login'
 import Cadastro from '@/pages/Cadastro'
+import EnviarDocumentos from '@/pages/EnviarDocumentos'
 import Dashboard from '@/pages/Dashboard'
 import Negocios from '@/pages/Negocios'
 import NegocioDetalhe from '@/pages/NegocioDetalhe'
@@ -20,6 +21,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
+        {/* Pública de propósito: quem envia documento não tem conta. */}
+        <Route path="/enviar-documentos/:token" element={<EnviarDocumentos />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
