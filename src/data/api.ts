@@ -56,10 +56,12 @@ function fail(context: string, error: { message: string; code?: string }): never
 // ---------------------------------------------------------------------------
 
 interface PartyRow {
+  id?: string
   side: 'buyer' | 'seller'
   name: string
   role: string
   email: string | null
+  phone?: string | null
 }
 
 export async function fetchDeals(): Promise<Deal[]> {
@@ -193,12 +195,33 @@ export async function createDeal(input: NewDealInput): Promise<CreatedDeal> {
 // Detalhe do negócio
 // ---------------------------------------------------------------------------
 
+export interface ReceivedDocument {
+  id: string
+  docName: string
+  storagePath: string
+  mimeType: string | null
+  sizeBytes: number | null
+  uploadedAt: string
+}
+
+export interface PartyInvite {
+  token: string
+  sentAt: string | null
+  firstOpenedAt: string | null
+  expiresAt: string
+}
+
 export interface DealParticipant {
+  /** Nulo para a equipe, que não é linha de deal_parties. */
+  id: string | null
   name: string
   initials: string
   role: string
   email: string | null
+  phone: string | null
   side: 'buyer' | 'seller' | 'team'
+  invite: PartyInvite | null
+  documents: ReceivedDocument[]
 }
 
 export interface DealDetail {
@@ -220,7 +243,7 @@ export async function fetchDealDetail(reference: string): Promise<DealDetail | n
     .from('deals')
     // Precisa ser um literal único: o supabase-js analisa esta string para
     // inferir os tipos, e uma concatenação em runtime derruba a inferência.
-    .select('id, reference, type, address, district, city, status, stage, progress, value, recurring, created_at, updated_at, owner:profiles(name, email), parties:deal_parties(side, name, role, email)')
+    .select('id, reference, type, modality, address, district, city, status, stage, progress, value, recurring, created_at, updated_at, owner:profiles(name, email), parties:deal_parties(id, side, name, role, email, phone)')
     .eq('reference', reference)
     .maybeSingle()
 
@@ -359,27 +382,69 @@ export async function fetchDealDetail(reference: string): Promise<DealDetail | n
     at: relativeTime(a.occurred_at as string),
   }))
 
+  // Convites e documentos recebidos, para a aba de documentos.
+  const [invitesRes, docsRes] = await Promise.all([
+    db
+      .from('party_invites')
+      .select('party_id, token, sent_at, first_opened_at, expires_at')
+      .eq('deal_id', dealUuid),
+    db
+      .from('party_documents')
+      .select('id, party_id, doc_name, storage_path, mime_type, size_bytes, uploaded_at')
+      .eq('deal_id', dealUuid)
+      .order('uploaded_at'),
+  ])
+
+  const inviteBy = new Map<string, PartyInvite>()
+  for (const i of invitesRes.data ?? []) {
+    inviteBy.set(i.party_id as string, {
+      token: i.token as string,
+      sentAt: (i.sent_at as string) ?? null,
+      firstOpenedAt: (i.first_opened_at as string) ?? null,
+      expiresAt: i.expires_at as string,
+    })
+  }
+
+  const docsBy = new Map<string, ReceivedDocument[]>()
+  for (const d of docsRes.data ?? []) {
+    const key = d.party_id as string
+    const list = docsBy.get(key) ?? []
+    list.push({
+      id: d.id as string,
+      docName: d.doc_name as string,
+      storagePath: d.storage_path as string,
+      mimeType: (d.mime_type as string) ?? null,
+      sizeBytes: d.size_bytes === null ? null : Number(d.size_bytes),
+      uploadedAt: d.uploaded_at as string,
+    })
+    docsBy.set(key, list)
+  }
+
+  const daParte = (p: PartyRow, side: 'buyer' | 'seller'): DealParticipant => ({
+    id: p.id ?? null,
+    name: p.name,
+    initials: initialsFrom(p.name),
+    role: p.role,
+    email: p.email,
+    phone: p.phone ?? null,
+    side,
+    invite: p.id ? (inviteBy.get(p.id) ?? null) : null,
+    documents: p.id ? (docsBy.get(p.id) ?? []) : [],
+  })
+
   const participants: DealParticipant[] = [
-    buyer && {
-      name: buyer.name,
-      initials: initialsFrom(buyer.name),
-      role: buyer.role,
-      email: buyer.email,
-      side: 'buyer' as const,
-    },
-    seller && {
-      name: seller.name,
-      initials: initialsFrom(seller.name),
-      role: seller.role,
-      email: seller.email,
-      side: 'seller' as const,
-    },
+    buyer && daParte(buyer, 'buyer'),
+    seller && daParte(seller, 'seller'),
     owner && {
+      id: null,
       name: owner.name,
       initials: initialsFrom(owner.name),
       role: 'Responsável',
       email: owner.email,
+      phone: null,
       side: 'team' as const,
+      invite: null,
+      documents: [],
     },
   ].filter(Boolean) as DealParticipant[]
 

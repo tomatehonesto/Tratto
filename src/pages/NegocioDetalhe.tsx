@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, MapPin, Check, Circle, Clock, Mail, FileText } from 'lucide-react'
+import { ArrowLeft, MapPin, Check, Circle, Clock, Mail, Phone, FileText } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
@@ -8,6 +8,8 @@ import { Progress } from '@/components/ui/progress'
 import { UnderlineTabs } from '@/components/ui/tabs'
 import { Table, Th, Td, Tr } from '@/components/ui/table'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/states'
+import { DocumentosRecebidos } from '@/components/deals/DocumentosRecebidos'
+import { useAuth } from '@/contexts/AuthContext'
 import { fetchDealDetail } from '@/data/api'
 import type { DealDetail } from '@/data/api'
 import { buildPipeline, countConcluidas } from '@/data/pipeline'
@@ -25,6 +27,7 @@ import { formatCurrency, formatDate, formatCost } from '@/lib/format'
 
 const TABS = [
   { value: 'overview', label: 'Overview' },
+  { value: 'documentos', label: 'Documentos' },
   { value: 'certidoes', label: 'Certidões' },
   { value: 'contrato', label: 'Contrato' },
   { value: 'participantes', label: 'Participantes' },
@@ -34,6 +37,7 @@ const TABS = [
 export default function NegocioDetalhe() {
   const { reference } = useParams<{ reference: string }>()
   const [tab, setTab] = useState('overview')
+  const { displayUser } = useAuth()
 
   // A referência vem da URL sem o '#', que é o fragmento da própria URL.
   const ref = `#${reference ?? ''}`
@@ -102,6 +106,13 @@ export default function NegocioDetalhe() {
       </div>
 
       {tab === 'overview' && <Overview data={data} />}
+      {tab === 'documentos' && (
+        <DocumentosRecebidos
+          data={data}
+          organizationName={displayUser?.organizationName ?? 'sua imobiliária'}
+          onReload={reload}
+        />
+      )}
       {tab === 'certidoes' && <Certidoes data={data} />}
       {tab === 'contrato' && <Contrato data={data} />}
       {tab === 'participantes' && <Participantes data={data} />}
@@ -381,6 +392,24 @@ function Participantes({ data }: { data: DealDetail }) {
               </a>
             ) : (
               <p className="mt-2 text-[13px] text-muted-foreground">Sem email cadastrado</p>
+            )}
+
+            {p.phone && (
+              <a
+                href={`tel:${p.phone.replace(/\D/g, '')}`}
+                className="mt-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Phone className="size-3.5 shrink-0" />
+                {p.phone}
+              </a>
+            )}
+
+            {p.documents.length > 0 && (
+              <p className="mt-2.5 flex items-center gap-1.5 text-[12px] text-[#047857]">
+                <Check className="size-3.5 shrink-0" />
+                {p.documents.length} documento{p.documents.length === 1 ? '' : 's'} enviado
+                {p.documents.length === 1 ? '' : 's'}
+              </p>
             )}
           </CardBody>
         </Card>

@@ -78,6 +78,24 @@ export async function uploadDocumento(token: string, docName: string, file: File
   }
 }
 
+/**
+ * URL temporária para a equipe abrir um documento.
+ *
+ * O bucket é privado: não existe link direto. Cada abertura gera uma URL nova,
+ * válida por poucos minutos, e a policy do Storage confere que o arquivo é de
+ * um negócio da organização de quem pediu.
+ */
+export async function urlAssinada(storagePath: string): Promise<string> {
+  const { data, error } = await client()
+    .storage.from('deal-documents')
+    .createSignedUrl(storagePath, 300)
+
+  if (error || !data) {
+    throw new Error('Não foi possível abrir o arquivo.')
+  }
+  return data.signedUrl
+}
+
 export interface ConviteEnviar {
   token: string
   nome: string
@@ -94,7 +112,8 @@ export interface ConviteEnviar {
  * pode ser reenviado depois.
  */
 export async function enviarConvite(convite: ConviteEnviar): Promise<{ ok: boolean; erro?: string }> {
-  const { data } = await client().auth.getSession()
+  const db = client()
+  const { data } = await db.auth.getSession()
   const accessToken = data.session?.access_token
   if (!accessToken) return { ok: false, erro: 'Sessão expirada.' }
 
@@ -112,6 +131,13 @@ export async function enviarConvite(convite: ConviteEnviar): Promise<{ ok: boole
       const body = (await res.json().catch(() => ({}))) as { error?: string }
       return { ok: false, erro: body.error ?? 'Falha no envio.' }
     }
+
+    // Marca o envio para a equipe saber quando o convite saiu.
+    await db
+      .from('party_invites')
+      .update({ sent_at: new Date().toISOString() })
+      .eq('token', convite.token)
+
     return { ok: true }
   } catch {
     return { ok: false, erro: 'Não foi possível contatar o servidor de envio.' }
