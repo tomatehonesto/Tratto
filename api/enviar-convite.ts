@@ -33,6 +33,13 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'Método não permitido.' }, 405)
   }
 
+  // Autenticação antes de qualquer outra coisa: quem não tem sessão não deve
+  // sequer descobrir se o servidor está configurado.
+  const auth = req.headers.get('authorization') ?? ''
+  if (!auth.startsWith('Bearer ')) {
+    return json({ error: 'Não autenticado.' }, 401)
+  }
+
   const apiKey = process.env.RESEND_API_KEY
   const remetente = process.env.INVITE_FROM_EMAIL
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL
@@ -40,12 +47,6 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (!apiKey || !remetente || !supabaseUrl || !anonKey) {
     return json({ error: 'Envio de convites não configurado no servidor.' }, 500)
-  }
-
-  // Confirma que quem chamou está autenticado de verdade.
-  const auth = req.headers.get('authorization') ?? ''
-  if (!auth.startsWith('Bearer ')) {
-    return json({ error: 'Não autenticado.' }, 401)
   }
 
   const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
