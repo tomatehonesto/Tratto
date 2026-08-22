@@ -10,6 +10,13 @@
  * conhecer a URL: sem sessão, a função recusa.
  */
 
+// Runtime edge declarado de propósito: a função só faz chamadas HTTP, e é o
+// runtime onde a assinatura Request/Response é a esperada. Sem isto, a Vercel
+// pode tentar compilá-la como função Node com outra assinatura.
+export const config = { runtime: 'edge' }
+
+declare const process: { env: Record<string, string | undefined> }
+
 interface Corpo {
   token: string
   nome: string
