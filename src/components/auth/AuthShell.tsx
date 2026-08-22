@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react'
+import type { InputHTMLAttributes, ReactNode, Ref } from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,7 +43,12 @@ export function TextField({
   hint,
   className,
   ...props
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & {
+  label: string
+  hint?: string
+  // React 19 passa ref como prop comum; o tipo precisa declará-la.
+  ref?: Ref<HTMLInputElement>
+}) {
   return (
     <div>
       <label htmlFor={props.id} className="mb-1.5 block text-[13px] font-medium">

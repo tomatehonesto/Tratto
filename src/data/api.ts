@@ -105,9 +105,15 @@ export async function fetchDeals(): Promise<Deal[]> {
 
 export interface NewDealInput {
   type: DealType
+  /** Linha composta para exibição; as partes vão nos campos abaixo. */
   address: string
+  cep: string
+  street: string
+  number: string
+  complement: string
   district: string
   city: string
+  uf: string
   value: number
   recurring: boolean
   stage: DealStage
@@ -128,8 +134,13 @@ export async function createDeal(input: NewDealInput): Promise<string> {
   const { data, error } = await client().rpc('create_deal', {
     p_type: input.type,
     p_address: input.address,
+    p_cep: input.cep,
+    p_street: input.street,
+    p_number: input.number,
+    p_complement: input.complement,
     p_district: input.district,
     p_city: input.city,
+    p_uf: input.uf,
     p_value: input.value,
     p_recurring: input.recurring,
     p_stage: input.stage,

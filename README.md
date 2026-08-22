@@ -98,6 +98,7 @@ Supabase, em ordem:
 | `0002_seed.sql` | Dados de demonstração e vínculo do seu usuário |
 | `0003_grants.sql` | Privilégios de tabela para `authenticated` |
 | `0004_signup_e_escrita.sql` | Provisionamento no cadastro, numeração de negócios e policies de escrita |
+| `0005_endereco_estruturado.sql` | CEP, logradouro, número e complemento em colunas próprias |
 
 O `0003` não é opcional. O projeto está com *"Automatically expose new tables"*
 desligado — o que é o certo, porque dá controle tabela a tabela — mas isso faz
@@ -123,6 +124,16 @@ a RLS continua valendo.
 O guia de documentação por UF (`src/data/documentos.ts`) e os checklists por
 modelo (`src/data/checklists.ts`) seguem em código de propósito: são conteúdo de
 referência, idênticos para toda imobiliária e versionados por deploy.
+
+## Consulta de CEP
+
+`src/lib/cep.ts` consulta **ViaCEP** e cai para a **BrasilAPI** se ela falhar.
+Ambas são gratuitas e sem chave, então não há credencial a configurar.
+
+O CEP resolve logradouro, bairro, cidade e UF — nunca número nem complemento,
+que continuam sendo digitados. Isso significa que o endereço é *plausível*, não
+verificado: garante que a rua existe naquele CEP, não que o número existe.
+Validação de endereço completo exigiria geocoding pago.
 
 ## Estado atual
 
