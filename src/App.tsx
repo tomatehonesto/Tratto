@@ -6,6 +6,7 @@ import Login from '@/pages/Login'
 import Cadastro from '@/pages/Cadastro'
 import Dashboard from '@/pages/Dashboard'
 import Negocios from '@/pages/Negocios'
+import NegocioDetalhe from '@/pages/NegocioDetalhe'
 import Documentos from '@/pages/Documentos'
 import Certidoes from '@/pages/Certidoes'
 import Auditoria from '@/pages/Auditoria'
@@ -24,6 +25,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/negocios" element={<Negocios />} />
+            <Route path="/negocios/:reference" element={<NegocioDetalhe />} />
             <Route path="/documentos" element={<Documentos />} />
             <Route path="/certidoes" element={<Certidoes />} />
             <Route path="/auditoria" element={<Auditoria />} />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, MapPin, AlertTriangle } from 'lucide-react'
 import { Card, CardBody } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -140,7 +141,12 @@ export default function Negocios() {
 
 function DealCard({ deal: d }: { deal: Deal }) {
   return (
-    <Card className="flex flex-col transition-shadow hover:shadow-[0_2px_12px_rgba(10,10,15,0.07)]">
+    // A referência vai na URL sem o '#', que é o fragmento da própria URL.
+    <Link
+      to={`/negocios/${d.id.replace('#', '')}`}
+      className="block rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      <Card className="flex h-full cursor-pointer flex-col transition-shadow hover:shadow-[0_2px_12px_rgba(10,10,15,0.10)]">
       <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-3">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[12px] text-muted-foreground">{d.id}</span>
@@ -200,6 +206,7 @@ function DealCard({ deal: d }: { deal: Deal }) {
         </span>
         <span className="text-[12px] text-muted-foreground">{formatDate(d.updatedAt)}</span>
       </div>
-    </Card>
+      </Card>
+    </Link>
   )
 }

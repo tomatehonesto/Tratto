@@ -162,6 +162,212 @@ export async function createDeal(input: NewDealInput): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Detalhe do negócio
+// ---------------------------------------------------------------------------
+
+export interface DealParticipant {
+  name: string
+  initials: string
+  role: string
+  email: string | null
+  side: 'buyer' | 'seller' | 'team'
+}
+
+export interface DealDetail {
+  deal: Deal
+  participants: DealParticipant[]
+  certidoes: Certidao[]
+  contract: Contract | null
+  signatures: Signature[]
+  audit: Audit | null
+  activities: Activity[]
+  createdAt: string
+}
+
+/** Carrega tudo de um negócio pela referência (#001). */
+export async function fetchDealDetail(reference: string): Promise<DealDetail | null> {
+  const db = client()
+
+  const { data: row, error } = await db
+    .from('deals')
+    // Precisa ser um literal único: o supabase-js analisa esta string para
+    // inferir os tipos, e uma concatenação em runtime derruba a inferência.
+    .select('id, reference, type, address, district, city, status, stage, progress, value, recurring, created_at, updated_at, owner:profiles(name, email), parties:deal_parties(side, name, role, email)')
+    .eq('reference', reference)
+    .maybeSingle()
+
+  if (error) fail('o negócio', error)
+  if (!row) return null
+
+  const parties = (row.parties ?? []) as PartyRow[]
+  const buyer = parties.find((p) => p.side === 'buyer')
+  const seller = parties.find((p) => p.side === 'seller')
+  const owner = one<{ name: string; email: string }>(row.owner)
+  const ownerName = owner?.name ?? '—'
+
+  const deal: Deal = {
+    id: row.reference as string,
+    type: row.type as DealType,
+    address: row.address as string,
+    district: (row.district as string) ?? '',
+    city: (row.city as string) ?? '',
+    status: row.status as DealStatus,
+    stage: row.stage as DealStage,
+    progress: row.progress as number,
+    value: Number(row.value ?? 0),
+    recurring: Boolean(row.recurring),
+    buyer: {
+      name: buyer?.name ?? '—',
+      initials: initialsFrom(buyer?.name ?? '?'),
+      role: buyer?.role ?? 'Comprador',
+    },
+    seller: {
+      name: seller?.name ?? '—',
+      initials: initialsFrom(seller?.name ?? '?'),
+      role: seller?.role ?? 'Vendedor',
+    },
+    owner: { name: ownerName, initials: initialsFrom(ownerName) },
+    updatedAt: (row.updated_at as string)?.slice(0, 10) ?? '',
+  }
+
+  const dealUuid = row.id as string
+
+  // Escopadas ao negócio — no protótipo estas abas mostravam tudo de todos.
+  const [certRes, contractRes, auditRes, actRes] = await Promise.all([
+    db
+      .from('certificates')
+      .select('id, name, origin, agency, requested_at, valid_until, cost, status')
+      .eq('deal_id', dealUuid)
+      .order('requested_at'),
+    db
+      .from('contracts')
+      .select('id, version, type, status, updated_at, owner:profiles(name)')
+      .eq('deal_id', dealUuid)
+      .maybeSingle(),
+    db
+      .from('audits')
+      .select('verdict, audit_groups(label, done, total, position)')
+      .eq('deal_id', dealUuid)
+      .maybeSingle(),
+    db
+      .from('activities')
+      .select('title, kind, status, occurred_at')
+      .eq('deal_id', dealUuid)
+      .order('occurred_at', { ascending: false }),
+  ])
+
+  const firstError = certRes.error ?? contractRes.error ?? auditRes.error ?? actRes.error
+  if (firstError) fail('os dados do negócio', firstError)
+
+  const certidoes: Certidao[] = (certRes.data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    dealId: reference,
+    origin: c.origin as string,
+    agency: c.agency as string,
+    requestedAt: (c.requested_at as string) ?? '',
+    validUntil: (c.valid_until as string) ?? null,
+    cost: c.cost === null ? null : Number(c.cost),
+    status: c.status as CertidaoStatus,
+  }))
+
+  let contract: Contract | null = null
+  let signatures: Signature[] = []
+
+  if (contractRes.data) {
+    const c = contractRes.data
+    const cOwner = one<{ name: string }>(c.owner)?.name ?? null
+    contract = {
+      dealId: reference,
+      address: deal.address,
+      type: c.type as DealType,
+      version: (c.version as string) ?? null,
+      owner: cOwner ? { name: cOwner, initials: initialsFrom(cOwner) } : null,
+      updatedAt: (c.updated_at as string)?.slice(0, 10) ?? null,
+      status: c.status as ContractStatus,
+    }
+
+    const { data: sigRows } = await db
+      .from('signatures')
+      .select('id, name, email, role, sent_at, deadline, status')
+      .eq('contract_id', c.id as string)
+
+    signatures = (sigRows ?? []).map((s) => ({
+      id: s.id as string,
+      name: s.name as string,
+      initials: initialsFrom(s.name as string),
+      email: s.email as string,
+      dealId: reference,
+      contract: `Contrato de ${c.type}${c.version ? ` ${c.version}` : ''}`,
+      role: s.role as string,
+      sentAt: (s.sent_at as string) ?? '',
+      deadline: (s.deadline as string) ?? '',
+      status: s.status as SignatureStatus,
+    }))
+  }
+
+  let audit: Audit | null = null
+  if (auditRes.data) {
+    const groups = ((auditRes.data.audit_groups ?? []) as AuditGroupRow[])
+      .slice()
+      .sort((a, b) => a.position - b.position)
+    audit = {
+      dealId: reference,
+      type: deal.type,
+      address: deal.address,
+      city: deal.city,
+      groups: groups.map((g) => ({ label: g.label, done: g.done, total: g.total })),
+      verdict: auditRes.data.verdict as Audit['verdict'],
+    }
+  }
+
+  const activities: Activity[] = (actRes.data ?? []).map((a) => ({
+    title: a.title as string,
+    kind: a.kind as ActivityKind,
+    dealId: reference,
+    address: deal.address,
+    city: deal.city,
+    status: a.status as DealStatus,
+    at: relativeTime(a.occurred_at as string),
+  }))
+
+  const participants: DealParticipant[] = [
+    buyer && {
+      name: buyer.name,
+      initials: initialsFrom(buyer.name),
+      role: buyer.role,
+      email: buyer.email,
+      side: 'buyer' as const,
+    },
+    seller && {
+      name: seller.name,
+      initials: initialsFrom(seller.name),
+      role: seller.role,
+      email: seller.email,
+      side: 'seller' as const,
+    },
+    owner && {
+      name: owner.name,
+      initials: initialsFrom(owner.name),
+      role: 'Responsável',
+      email: owner.email,
+      side: 'team' as const,
+    },
+  ].filter(Boolean) as DealParticipant[]
+
+  return {
+    deal,
+    participants,
+    certidoes,
+    contract,
+    signatures,
+    audit,
+    activities,
+    createdAt: (row.created_at as string)?.slice(0, 10) ?? '',
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Certidões
 // ---------------------------------------------------------------------------
 
